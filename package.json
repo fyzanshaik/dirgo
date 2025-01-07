@@ -1,0 +1,18 @@
+{
+	"name": "dirgo",
+	"version": "1.0.0",
+	"description": "Interactive project structure generator with enhanced features for LLM context",
+	"main": "index.js",
+	"bin": {
+		"project-tree-gen": "./index.js"
+	},
+	"type": "module",
+	"dependencies": {
+		"chalk": "^5.3.0",
+		"clipboardy": "^3.0.0",
+		"commander": "^11.0.0",
+		"ignore": "^5.2.4",
+		"inquirer": "^9.2.10",
+		"ora": "^7.0.1"
+	}
+}
