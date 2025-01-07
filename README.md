@@ -1,159 +1,194 @@
-# ProjMap - Project Structure Generator for LLMs
+# 🌳 dirgo - Smart Directory Trees for LLMs & Devs
 
-## Overview
+A lightning-fast directory structure generator with LLM context support, code analysis, and dependency tracking.
 
-ProjMap is a powerful CLI tool that generates project structures optimized for LLM context. It goes beyond simple directory trees by providing code analysis, dependency tracking, and LLM-friendly
-output formats.
-
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Install globally
-npm install -g projmap
-
-# Or run directly with npx
-npx projmap
+npm install -g dirgo
+# Or run directly
+npx dirgo
 ```
 
-## Core Features & Examples
+## ✨ Features
 
-### 1. Basic Structure Generation
+### 📁 Quick Structure Generation
 
 ```bash
-# Generate basic tree
-npx projmap
+# Basic tree with emojis
+dirgo
+📁 my-project/
+├── 📁 src/
+│   ├── ⚛️ App.tsx
+│   └── 🎨 styles.css
+└── 📦 package.json
 
-# With statistics
-npx projmap --stats
+# Include file stats
+dirgo --stats
 
-# Output:
-📁 my-project/ [15 files, 3 dirs, 1.24 MB]
-├── 📁 src/ [10 files, 2 dirs, 856.32 KB]
-│   ├── ⚛️ App.tsx [12.5 KB]
-│   └── 🎨 styles.css [2.3 KB]
+# Save to file
+dirgo -o file -f project.txt
 ```
 
-### 2. Code Analysis Mode
+### 🤖 LLM Context Generation
+
+Perfect for providing context to ChatGPT or other LLMs:
 
 ```bash
-npx projmap --code-analysis
+# Generate LLM-optimized context
+dirgo --llm-context
 
-# Output example:
-📁 src/
-├── ⚛️ App.tsx
-│   ├── Imports: 5
-│   ├── Exports: 1
-│   ├── Functions: 3
-│   └── Lines: 120
-└── 📁 components/
-    └── Button.tsx
-        ├── Imports: 2
-        └── Functions: 1
+# Output includes:
+- Project type detection
+- Directory structure
+- Dependencies analysis
+- Key file summaries
 ```
 
-### 3. Dependency Analysis
+### 🎯 Smart Features
+
+-  Automatic project type detection (Node.js, Python, Go)
+-  Dependency analysis
+-  File statistics and size information
+-  Copy to clipboard support
+-  Custom ignore patterns
+-  Interactive mode
+
+## 🛠️ Command Options
+
+### Basic Commands
 
 ```bash
-npx projmap --dependencies
-
-# Shows:
-Dependencies:
-├── NPM Packages: 15
-├── Main deps: react, express, typescript
-└── Dev deps: jest, eslint
+dirgo                           # Basic tree
+dirgo --stats                   # Include statistics
+dirgo -d ./my-project          # Specific directory
+dirgo --copy                   # Copy to clipboard
 ```
 
-### 4. Documentation Mode
+### LLM Context
 
 ```bash
-npx projmap --docs --format markdown
-
-# Creates a markdown file with:
-- Project structure
-- Code summaries
-- Import/export maps
-- Dependency lists
+dirgo --llm-context            # Full project context
+dirgo --llm-context --stats    # With file statistics
+dirgo --llm-context --copy     # Copy to clipboard
 ```
 
-## Advanced Use Cases
-
-### 1. LLM Context Generation
+### Output Options
 
 ```bash
-# Generate complete context
-npx projmap --stats --code-analysis --docs --format markdown --copy
+dirgo -o file                  # Save to file
+dirgo -o both                  # Console & file
+dirgo -f custom-name.txt       # Custom filename
+```
 
-# Perfect for pasting into ChatGPT:
-- Full project structure
-- Code analysis
-- Dependencies
-- Documentation
+### Customization
+
+```bash
+dirgo --no-emoji               # Disable emojis
+dirgo --include-all            # Include node_modules
+dirgo --ignore "dist,build"    # Custom ignore
+```
+
+## 🎨 Interactive Mode
+
+Run with `-i` for an interactive menu:
+
+```bash
+dirgo -i
+
+# Provides options for:
+✓ Quick structure generation
+✓ LLM context generation
+✓ Output customization
+✓ File statistics
+✓ Copy to clipboard
+```
+
+## 💡 Use Cases
+
+### 1. LLM Context
+
+```bash
+dirgo --llm-context --copy
+# Perfect for:
+- Sharing project context with ChatGPT
+- Getting AI assistance
+- Project documentation
 ```
 
 ### 2. Project Documentation
 
 ```bash
-# Generate documentation
-npx projmap -o file -f project-docs.md --format markdown --docs
-
-# Includes:
-- Directory structure
-- File summaries
-- Code organization
-- Tech stack details
+dirgo --stats -o file -f docs.md
+# Great for:
+- Project overviews
+- Documentation
+- Team onboarding
 ```
 
-### 3. Codebase Analysis
+### 3. Quick Analysis
 
 ```bash
-# Full analysis
-npx projmap --stats --code-analysis --dependencies
-
+dirgo --stats
 # Shows:
-- File counts and sizes
-- Code complexity
-- Import/export relationships
-- Dependency graph
+- File counts
+- Directory sizes
+- Project structure
 ```
 
-## Interactive Mode
+## 🌟 Why dirgo?
+
+### For Developers
+
+-  Quick project visualization
+-  Easy documentation generation
+-  Multiple output formats
+-  Configurable and extensible
+
+### For LLM Users
+
+-  Optimized context generation
+-  Smart project analysis
+-  Dependency tracking
+-  Code relationship mapping
+
+### For Teams
+
+-  Consistent project documentation
+-  Easy project sharing
+-  Quick project insights
+-  Time-saving automation
+
+## 📦 Installation
+
+### Global Installation
 
 ```bash
-npx projmap -i
-
-# Provides interactive menu for:
-1. Output format selection
-2. Feature toggling
-3. Custom configurations
-4. Analysis options
+npm install -g dirgo
 ```
 
-## Common Options
+### One-time Use
 
--  `--stats`: Show file/directory statistics
--  `--emoji`: Enable/disable emoji indicators
--  `--copy`: Copy output to clipboard
--  `--format`: Choose output format (tree/markdown/json)
--  `--output`: Output destination (console/file/both)
--  `--code-analysis`: Include code analysis
--  `--dependencies`: Add dependency information
--  `--docs`: Include documentation
+```bash
+npx dirgo
+```
 
-## Why Use ProjMap?
+## 🤝 Contributing
 
-1. **LLM Optimization**
+Contributions welcome! Feel free to:
 
-   -  Structured output for better context
-   -  Code relationship analysis
-   -  Comprehensive project overview
+-  Open issues
+-  Submit PRs
+-  Suggest features
+-  Improve documentation
 
-2. **Developer Friendly**
+## 📄 License
 
-   -  Quick project insights
-   -  Easy documentation generation
-   -  Multiple output formats
+MIT - feel free to use in your projects!
 
-3. **Time Saving**
-   -  Automated analysis
-   -  Clipboard integration
-   -  Configurable output
+## 🔗 Links
+
+-  [GitHub Repository](https://github.com/fyzanshaik/dirgo)
+-  [NPM Package](https://www.npmjs.com/package/dirgo)
+-  [Issues](https://github.com/fyzanshaik/dirgo/issues)
