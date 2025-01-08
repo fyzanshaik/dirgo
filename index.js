@@ -607,7 +607,7 @@ program
 	.version('1.0.0')
 	.option('-i, --interactive', 'Run in interactive mode')
 	.option('-n, --no-emoji', 'Disable emojis')
-	.option('-c, --copy', 'Copy to clipboard')
+	.option('--no-copy', 'Disable automatic clipboard copy')
 	.option('-d, --dir <directory>', 'Target directory', '.')
 	.option('-o, --output <type>', 'Output type (console/file/both)', 'console')
 	.option('-f, --filename <filename>', 'Output filename')
@@ -624,9 +624,7 @@ program
 		const spinner = ora('Analyzing project...').start();
 		try {
 			if (options.llmContext) {
-				const context = await generateLLMContext(options.dir || '.', {
-					emoji: options.emoji,
-				});
+				const context = await generateLLMContext(options.dir || '.');
 				spinner.stop();
 
 				if (options.output === 'file') {
@@ -637,9 +635,9 @@ program
 					console.log(context);
 				}
 
-				if (options.copy) {
+				if (options.copy !== false) {
 					await clipboard.write(context);
-					console.log(chalk.green('📋 Context copied to clipboard!'));
+					console.log(chalk.green('📋 Copied to clipboard!'));
 				}
 			} else {
 				const ignoreHelper = ignore();
@@ -655,6 +653,7 @@ program
 					{
 						...options,
 						ignoreRules: ignoreHelper,
+						copy: options.copy !== false,
 					},
 					spinner
 				);
@@ -667,7 +666,6 @@ program
 			process.exit(1);
 		}
 	});
-
 program
 	.command('init')
 	.description('Initialize configuration file')
@@ -710,31 +708,32 @@ program
 		console.log(
 			chalk.cyan(`
 === Quick Generate ===
-$ dirgo                                       # Basic structure with emojis
-$ dirgo -n                                   # Basic structure without emojis
-$ dirgo --stats                              # With statistics
+$ dirgo                       # Basic structure (auto-copies to clipboard)
+$ dirgo -n                    # Without emojis (auto-copies to clipboard)
+$ dirgo --no-copy            # Disable clipboard copy
+$ dirgo -s                    # With statistics
 
 === LLM Context ===
-$ dirgo --llm-context                        # Generate LLM context
-$ dirgo --llm-context -n                     # LLM context without emojis
-$ dirgo --llm-context --copy                 # Generate and copy
+$ dirgo --llm-context        # Generate LLM context (auto-copies)
+$ dirgo --llm-context -n     # LLM context without emojis
+$ dirgo --llm-context --no-copy  # Without clipboard copy
 
 === Output Options ===
-$ dirgo -o file -f structure.txt             # Save to file
-$ dirgo -o both                              # Console and file
-$ dirgo -c                                   # Copy to clipboard
+$ dirgo -o file -f struct.txt  # Save to file
+$ dirgo -o both                # Console & file
+$ dirgo --no-copy -o file     # File only, no clipboard
 
 === Customization ===
-$ dirgo -n -s                                # No emojis with stats
-$ dirgo --include-all                        # Include all directories
-$ dirgo --ignore "dist,build"                # Custom ignore patterns
+$ dirgo -n -s                  # No emojis, with stats
+$ dirgo --include-all          # Include all directories
+$ dirgo --ignore "dist,build"  # Custom ignore patterns
 
 === Interactive Mode ===
-$ dirgo -i                                   # Interactive menu
+$ dirgo -i                     # Interactive menu
 
 For full options run:
 $ dirgo --help
-`)
+    `)
 		);
 	});
 program.parse();
