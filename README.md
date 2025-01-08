@@ -196,7 +196,7 @@ npx dirgo
 
 ## 📝 Version History
 
-### v1.0.3 (Current Stable)
+### v1.0.4 (Current Stable)
 
 ✅ **Recommended version for full functionality**
 
