@@ -235,67 +235,92 @@ async function generateStructure(dir, ignoreRules, baseDir, options) {
 			path: dir,
 			prefix: '',
 			depth: 0,
+			level: 0,
 		},
 	];
 
 	let colorOutput = '';
 	let plainOutput = '';
+	const processedPaths = new Set();
 
-	while (queue.length > 0) {
-		const { path: currentPath, prefix, depth } = queue.shift();
-
+	async function processDirectory(currentPath, prefix, depth) {
 		try {
 			const entries = await fs.readdir(currentPath, { withFileTypes: true });
-			const items = entries
-				.filter((entry) => {
-					if (DEFAULT_EXCLUDES.includes(entry.name)) return false;
-					const relativePath = path.relative(baseDir, path.join(currentPath, entry.name));
-					return !ignoreRules.ignores(relativePath);
-				})
-				.sort((a, b) => {
-					if (a.isDirectory() === b.isDirectory()) {
-						return a.name.localeCompare(b.name);
-					}
-					return a.isDirectory() ? -1 : 1;
-				});
+			// First, get all valid items
+			const validItems = entries.filter((entry) => {
+				if (DEFAULT_EXCLUDES.includes(entry.name)) return false;
+				const relativePath = path.relative(baseDir, path.join(currentPath, entry.name));
+				return !ignoreRules.ignores(relativePath);
+			});
 
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				const isLast = i === items.length - 1;
+			// Separate directories and files
+			const dirs = validItems.filter((item) => item.isDirectory());
+			const files = validItems.filter((item) => !item.isDirectory());
+
+			// Sort directories and files separately
+			dirs.sort((a, b) => a.name.localeCompare(b.name));
+			files.sort((a, b) => a.name.localeCompare(b.name));
+
+			// Process directories first
+			for (let i = 0; i < dirs.length; i++) {
+				const item = dirs[i];
 				const fullPath = path.join(currentPath, item.name);
-				const linePrefix = prefix + (isLast ? '└── ' : '├── ');
-				const nextPrefix = prefix + (isLast ? '    ' : '│   ');
+				if (processedPaths.has(fullPath)) continue;
+				processedPaths.add(fullPath);
 
-				const emoji = options.emoji ? getEmoji(item.name, item.isDirectory()) + ' ' : '';
+				const isLastDir = i === dirs.length - 1 && files.length === 0;
+				const linePrefix = prefix + (isLastDir ? '└── ' : '├── ');
+				const nextPrefix = prefix + (isLastDir ? '    ' : '│   ');
 
-				const coloredName = item.isDirectory() ? chalk.blue(item.name + '/') : chalk.white(item.name);
-				const plainName = item.name + (item.isDirectory() ? '/' : '');
+				const emoji = options.emoji ? getEmoji(item.name, true) + ' ' : '';
+				const coloredName = chalk.blue(item.name + '/');
+				const plainName = item.name + '/';
 
-				let coloredStats = '';
-				let plainStats = '';
+				let statsStr = '';
 				if (options.stats) {
 					try {
 						const stats = await fs.stat(fullPath);
 						const sizeStr = ` [${formatSize(stats.size)}]`;
-						coloredStats = chalk.gray(sizeStr);
-						plainStats = sizeStr;
+						statsStr = chalk.gray(sizeStr);
 					} catch {
-						const errorStr = ' [error]';
-						coloredStats = chalk.red(errorStr);
-						plainStats = errorStr;
+						statsStr = chalk.red(' [error]');
 					}
 				}
 
-				colorOutput += `${linePrefix}${emoji}${coloredName}${coloredStats}\n`;
-				plainOutput += `${linePrefix}${emoji}${plainName}${plainStats}\n`;
+				colorOutput += `${linePrefix}${emoji}${coloredName}${statsStr}\n`;
+				plainOutput += `${linePrefix}${emoji}${plainName}${statsStr}\n`;
 
-				if (item.isDirectory() && depth < 20) {
-					queue.push({
-						path: fullPath,
-						prefix: nextPrefix,
-						depth: depth + 1,
-					});
+				// Process subdirectory immediately
+				await processDirectory(fullPath, nextPrefix, depth + 1);
+			}
+
+			// Then process files
+			for (let i = 0; i < files.length; i++) {
+				const item = files[i];
+				const fullPath = path.join(currentPath, item.name);
+				if (processedPaths.has(fullPath)) continue;
+				processedPaths.add(fullPath);
+
+				const isLast = i === files.length - 1;
+				const linePrefix = prefix + (isLast ? '└── ' : '├── ');
+
+				const emoji = options.emoji ? getEmoji(item.name, false) + ' ' : '';
+				const coloredName = chalk.white(item.name);
+				const plainName = item.name;
+
+				let statsStr = '';
+				if (options.stats) {
+					try {
+						const stats = await fs.stat(fullPath);
+						const sizeStr = ` [${formatSize(stats.size)}]`;
+						statsStr = chalk.gray(sizeStr);
+					} catch {
+						statsStr = chalk.red(' [error]');
+					}
 				}
+
+				colorOutput += `${linePrefix}${emoji}${coloredName}${statsStr}\n`;
+				plainOutput += `${linePrefix}${emoji}${plainName}${statsStr}\n`;
 			}
 		} catch (error) {
 			const errorMsg = `${prefix}Error reading ${currentPath}: ${error.message}\n`;
@@ -303,6 +328,8 @@ async function generateStructure(dir, ignoreRules, baseDir, options) {
 			plainOutput += errorMsg;
 		}
 	}
+
+	await processDirectory(dir, '', 0);
 
 	return {
 		colorOutput,
