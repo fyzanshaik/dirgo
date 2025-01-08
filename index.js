@@ -15,7 +15,6 @@ import ora from 'ora';
 import clipboard from 'clipboardy';
 import { fileURLToPath } from 'url';
 
-// File path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const FILE_EMOJIS = {
@@ -97,48 +96,127 @@ async function detectProjectType(directory) {
 
 async function analyzeDependencies(directory) {
 	const dependencies = {};
-	const depFiles = {
-		'package.json': 'npm',
-		'requirements.txt': 'python',
-		'go.mod': 'go',
-	};
 
-	for (const [filename, type] of Object.entries(depFiles)) {
+	// Go dependencies
+	try {
+		const goModPath = path.join(directory, 'go.mod');
+		const content = await fs.readFile(goModPath, 'utf8');
+		const lines = content.split('\n');
+
+		dependencies.go = {
+			version: '',
+			dependencies: {},
+			indirectDependencies: {},
+		};
+
+		let currentSection = null;
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+
+			// Get Go version
+			if (trimmed.startsWith('go ')) {
+				dependencies.go.version = trimmed.split(' ')[1];
+				continue;
+			}
+
+			// Check if entering require section
+			if (trimmed === 'require (') {
+				currentSection = 'direct';
+				continue;
+			}
+
+			// Handle dependencies
+			if (trimmed.startsWith('require ')) {
+				const parts = trimmed.replace('require ', '').split(' ');
+				dependencies.go.dependencies[parts[0]] = parts[1];
+				continue;
+			}
+
+			// Handle individual dependencies in require block
+			if (currentSection === 'direct' && trimmed && trimmed !== ')') {
+				const parts = trimmed.split(' ');
+				if (parts.length >= 2) {
+					const isIndirect = parts.includes('//') && parts.includes('indirect');
+					const name = parts[0];
+					const version = parts[1];
+
+					if (isIndirect) {
+						dependencies.go.indirectDependencies[name] = version;
+					} else {
+						dependencies.go.dependencies[name] = version;
+					}
+				}
+			}
+		}
+	} catch {
+		console.log(' go.mod not found or unreadable');
+	}
+
+	try {
+		const reqPath = path.join(directory, 'requirements.txt');
+		const content = await fs.readFile(reqPath, 'utf8');
+
+		dependencies.python = {
+			dependencies: {},
+		};
+
+		const lines = content.split('\n');
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (trimmed && !trimmed.startsWith('#')) {
+				// Handle different formats:
+				// package==1.0.0
+				// package>=1.0.0
+				// package~=1.0.0
+				// -r other-requirements.txt
+				// package[extra]>=1.0.0
+				if (!trimmed.startsWith('-r')) {
+					const match = trimmed.match(/^([^=<>~\[]+).*?([0-9].*)$/);
+					if (match) {
+						const [, name, version] = match;
+						dependencies.python.dependencies[name.trim()] = version.trim();
+					} else {
+						dependencies.python.dependencies[trimmed] = 'latest';
+					}
+				}
+			}
+		}
+	} catch {
 		try {
-			const content = await fs.readFile(path.join(directory, filename), 'utf8');
+			const pyprojectPath = path.join(directory, 'pyproject.toml');
+			const content = await fs.readFile(pyprojectPath, 'utf8');
 
-			if (filename === 'package.json') {
-				const { dependencies: deps, devDependencies } = JSON.parse(content);
-				dependencies[type] = { ...deps, ...devDependencies };
-			} else if (filename === 'requirements.txt') {
-				const deps = {};
-				content
-					.split('\n')
-					.filter((line) => line.trim() && !line.startsWith('#'))
-					.forEach((line) => {
-						const [name, version] = line.split('==');
-						deps[name.trim()] = version?.trim() || 'latest';
-					});
-				dependencies[type] = deps;
-			} else if (filename === 'go.mod') {
-				const deps = {};
-				content
-					.split('\n')
-					.filter((line) => line.trim().startsWith('require'))
-					.forEach((line) => {
-						const dep = line.replace('require', '').trim();
-						deps[dep] = 'specified';
-					});
-				dependencies[type] = deps;
+			const lines = content.split('\n');
+			let inDependencies = false;
+			dependencies.python = {
+				dependencies: {},
+			};
+
+			for (const line of lines) {
+				const trimmed = line.trim();
+				if (trimmed.startsWith('[tool.poetry.dependencies]') || trimmed.startsWith('[project.dependencies]')) {
+					inDependencies = true;
+					continue;
+				} else if (trimmed.startsWith('[')) {
+					inDependencies = false;
+				}
+
+				if (inDependencies && trimmed && !trimmed.startsWith('[')) {
+					const [name, version] = trimmed.split('=').map((s) => s.trim());
+					if (name && name !== 'python') {
+						const cleanVersion = version?.replace(/['"]/g, '').trim() || 'latest';
+						dependencies.python.dependencies[name] = cleanVersion;
+					}
+				}
 			}
 		} catch {
-			continue;
+			console.log('Neither requirements.txt nor pyproject.toml found');
 		}
 	}
 
 	return dependencies;
 }
-
 async function generateStructure(dir, ignoreRules, baseDir, options) {
 	const queue = [
 		{
@@ -219,13 +297,13 @@ async function generateStructure(dir, ignoreRules, baseDir, options) {
 		plainOutput,
 	};
 }
-async function generateLLMContext(directory) {
+async function generateLLMContext(directory, options = {}) {
 	const projectType = await detectProjectType(directory);
 	const ignoreHelper = ignore().add(DEFAULT_EXCLUDES);
 	let context = `Project Type: ${projectType}\n\n`;
 
 	const { plainOutput } = await generateStructure(directory, ignoreHelper, directory, {
-		emoji: true,
+		emoji: options.emoji !== false,
 		stats: true,
 	});
 
@@ -235,21 +313,50 @@ async function generateLLMContext(directory) {
 		const dependencies = await analyzeDependencies(directory);
 		if (Object.keys(dependencies).length > 0) {
 			context += 'Dependencies:\n\n';
-			for (const [type, deps] of Object.entries(dependencies)) {
-				context += `${type.toUpperCase()} Dependencies:\n`;
-				for (const [name, version] of Object.entries(deps)) {
-					context += `- ${name}: ${version}\n`;
+
+			if (dependencies.go) {
+				context += `GO Dependencies:\n`;
+				context += `Go Version: ${dependencies.go.version}\n\n`;
+
+				if (Object.keys(dependencies.go.dependencies).length > 0) {
+					context += `Direct Dependencies:\n`;
+					Object.entries(dependencies.go.dependencies).forEach(([dep, version]) => {
+						context += `- ${dep}: ${version}\n`;
+					});
+					context += '\n';
 				}
+
+				if (Object.keys(dependencies.go.indirectDependencies).length > 0) {
+					context += `Indirect Dependencies:\n`;
+					Object.entries(dependencies.go.indirectDependencies).forEach(([dep, version]) => {
+						context += `- ${dep}: ${version}\n`;
+					});
+					context += '\n';
+				}
+			}
+
+			if (dependencies.python?.dependencies) {
+				context += `PYTHON Dependencies:\n`;
+				Object.entries(dependencies.python.dependencies).forEach(([dep, version]) => {
+					context += `- ${dep}: ${version}\n`;
+				});
+				context += '\n';
+			}
+
+			if (dependencies.npm) {
+				context += `NPM Dependencies:\n`;
+				Object.entries(dependencies.npm).forEach(([dep, version]) => {
+					context += `- ${dep}: ${version}\n`;
+				});
 				context += '\n';
 			}
 		}
-	} catch {
-		context += 'Unable to analyze dependencies.\n';
+	} catch (error) {
+		context += `Unable to analyze dependencies: ${error.message}\n`;
 	}
 
 	return context;
 }
-
 async function quickGenerate(directory = '.', options = {}, spinner = null) {
 	try {
 		const ignoreHelper = options.ignoreRules || ignore().add(DEFAULT_EXCLUDES);
@@ -440,12 +547,15 @@ async function interactiveMode() {
 		process.exit(1);
 	}
 }
+
+//TODO: Maybe LLM context as -lm try later
+
 program
 	.name('dirgo')
 	.description('Directory structure generator with LLM context support')
 	.version('1.0.0')
 	.option('-i, --interactive', 'Run in interactive mode')
-	.option('-e, --no-emoji', 'Disable emojis')
+	.option('-n, --no-emoji', 'Disable emojis')
 	.option('-c, --copy', 'Copy to clipboard')
 	.option('-d, --dir <directory>', 'Target directory', '.')
 	.option('-o, --output <type>', 'Output type (console/file/both)', 'console')
@@ -463,7 +573,9 @@ program
 		const spinner = ora('Analyzing project...').start();
 		try {
 			if (options.llmContext) {
-				const context = await generateLLMContext(options.dir || '.');
+				const context = await generateLLMContext(options.dir || '.', {
+					emoji: options.emoji,
+				});
 				spinner.stop();
 
 				if (options.output === 'file') {
@@ -547,29 +659,30 @@ program
 		console.log(
 			chalk.cyan(`
 === Quick Generate ===
-$ npx projmap                                  # Basic structure
-$ npx projmap --stats                         # With statistics
+$ dirgo                                       # Basic structure with emojis
+$ dirgo -n                                   # Basic structure without emojis
+$ dirgo --stats                              # With statistics
 
 === LLM Context ===
-$ npx projmap --llm-context                   # Generate LLM context
-$ npx projmap --llm-context --stats           # LLM context with stats
-$ npx projmap --llm-context --copy            # Generate and copy
+$ dirgo --llm-context                        # Generate LLM context
+$ dirgo --llm-context -n                     # LLM context without emojis
+$ dirgo --llm-context --copy                 # Generate and copy
 
 === Output Options ===
-$ npx projmap -o file -f structure.txt        # Save to file
-$ npx projmap -o both                         # Console and file
-$ npx projmap --copy                          # Copy to clipboard
+$ dirgo -o file -f structure.txt             # Save to file
+$ dirgo -o both                              # Console and file
+$ dirgo -c                                   # Copy to clipboard
 
 === Customization ===
-$ npx projmap --no-emoji                      # Without emojis
-$ npx projmap --include-all                   # Include all directories
-$ npx projmap --ignore "dist,build"           # Custom ignore patterns
+$ dirgo -n -s                                # No emojis with stats
+$ dirgo --include-all                        # Include all directories
+$ dirgo --ignore "dist,build"                # Custom ignore patterns
 
 === Interactive Mode ===
-$ npx projmap -i                              # Interactive menu
+$ dirgo -i                                   # Interactive menu
 
 For full options run:
-$ npx projmap --help
+$ dirgo --help
 `)
 		);
 	});

@@ -7,6 +7,7 @@ A lightning-fast directory structure generator with LLM context support, code an
 ```bash
 # Install globally
 npm install -g dirgo
+
 # Or run directly
 npx dirgo
 ```
@@ -18,14 +19,12 @@ npx dirgo
 ```bash
 # Basic tree with emojis
 dirgo
-📁 my-project/
-├── 📁 src/
-│   ├── ⚛️ App.tsx
-│   └── 🎨 styles.css
-└── 📦 package.json
+
+# Without emojis (new!)
+dirgo -n
 
 # Include file stats
-dirgo --stats
+dirgo -s
 
 # Save to file
 dirgo -o file -f project.txt
@@ -39,17 +38,26 @@ Perfect for providing context to ChatGPT or other LLMs:
 # Generate LLM-optimized context
 dirgo --llm-context
 
-# Output includes:
-- Project type detection
+# Without emojis (new!)
+dirgo -n --llm-context
+
+# With stats and clipboard copy
+dirgo --llm-context -s -c
+
+Output includes:
+- Project type detection (Node.js, Python, Go)
 - Directory structure
-- Dependencies analysis
-- Key file summaries
+- Comprehensive dependency analysis
+  - Direct and indirect Go dependencies
+  - Python package requirements
+  - Node.js dependencies
 ```
 
 ### 🎯 Smart Features
 
--  Automatic project type detection (Node.js, Python, Go)
--  Dependency analysis
+-  Go module analysis with direct/indirect dependencies
+-  Python dependencies from requirements.txt and pyproject.toml
+-  Node.js package.json analysis
 -  File statistics and size information
 -  Copy to clipboard support
 -  Custom ignore patterns
@@ -60,34 +68,36 @@ dirgo --llm-context
 ### Basic Commands
 
 ```bash
-dirgo                           # Basic tree
-dirgo --stats                   # Include statistics
-dirgo -d ./my-project          # Specific directory
-dirgo --copy                   # Copy to clipboard
+dirgo              # Basic tree with emojis
+dirgo -n           # Without emojis
+dirgo -s           # Include statistics
+dirgo -d ./path    # Specific directory
+dirgo -c           # Copy to clipboard
 ```
 
 ### LLM Context
 
 ```bash
-dirgo --llm-context            # Full project context
-dirgo --llm-context --stats    # With file statistics
-dirgo --llm-context --copy     # Copy to clipboard
+dirgo --llm-context          # Full project context
+dirgo --llm-context -s       # With file statistics
+dirgo --llm-context -n -c    # No emojis, copy to clipboard
 ```
 
 ### Output Options
 
 ```bash
-dirgo -o file                  # Save to file
-dirgo -o both                  # Console & file
-dirgo -f custom-name.txt       # Custom filename
+dirgo -o file                # Save to file
+dirgo -o both                # Console & file
+dirgo -f custom-name.txt     # Custom filename
 ```
 
 ### Customization
 
 ```bash
-dirgo --no-emoji               # Disable emojis
-dirgo --include-all            # Include node_modules
-dirgo --ignore "dist,build"    # Custom ignore
+dirgo -n                     # No emojis (shorthand)
+dirgo --no-emoji            # No emojis (long form)
+dirgo --include-all         # Include node_modules
+dirgo --ignore "dist,build" # Custom ignore patterns
 ```
 
 ## 🎨 Interactive Mode
@@ -97,7 +107,7 @@ Run with `-i` for an interactive menu:
 ```bash
 dirgo -i
 
-# Provides options for:
+Provides options for:
 ✓ Quick structure generation
 ✓ LLM context generation
 ✓ Output customization
@@ -110,7 +120,7 @@ dirgo -i
 ### 1. LLM Context
 
 ```bash
-dirgo --llm-context --copy
+dirgo --llm-context -c
 # Perfect for:
 - Sharing project context with ChatGPT
 - Getting AI assistance
@@ -120,7 +130,7 @@ dirgo --llm-context --copy
 ### 2. Project Documentation
 
 ```bash
-dirgo --stats -o file -f docs.md
+dirgo -s -o file -f docs.md
 # Great for:
 - Project overviews
 - Documentation
@@ -130,11 +140,21 @@ dirgo --stats -o file -f docs.md
 ### 3. Quick Analysis
 
 ```bash
-dirgo --stats
+dirgo -s
 # Shows:
 - File counts
 - Directory sizes
 - Project structure
+```
+
+### 4. Dependency Analysis
+
+```bash
+dirgo --llm-context
+# Shows:
+- Go dependencies (direct/indirect)
+- Python package requirements
+- Node.js dependencies
 ```
 
 ## 🌟 Why dirgo?
@@ -144,13 +164,13 @@ dirgo --stats
 -  Quick project visualization
 -  Easy documentation generation
 -  Multiple output formats
--  Configurable and extensible
+-  Language-aware dependency analysis
 
 ### For LLM Users
 
 -  Optimized context generation
 -  Smart project analysis
--  Dependency tracking
+-  Comprehensive dependency tracking
 -  Code relationship mapping
 
 ### For Teams
@@ -172,6 +192,60 @@ npm install -g dirgo
 
 ```bash
 npx dirgo
+```
+
+## 📝 Version History
+
+### v1.0.3 (Current Stable)
+
+✅ **Recommended version for full functionality**
+
+-  Fixed clipboard output formatting (no more ANSI color codes)
+-  Added `-n` shorthand for `--no-emoji`
+-  Enhanced Go dependency analysis (direct/indirect dependencies)
+-  Fixed emoji display in LLM context
+-  Memory optimization
+-  Fixed project structure display
+
+### v1.0.2
+
+⚠️ Had following issues:
+
+-  Clipboard copied ANSI color codes
+-  Memory leaks in directory traversal
+-  Emoji display issues in LLM context
+-  Fixed recursive structure generation
+-  Added better error handling
+
+### v1.0.1
+
+❌ Not recommended due to:
+
+-  Node module resolution issues
+-  Hidden files being generated
+-  Memory issues with large directories
+-  CLI execution problems
+-  Dependency tracking bugs
+
+### v1.0.0 (Initial Release)
+
+❌ Initial test release with:
+
+-  Basic directory structure generation
+-  Simple dependency analysis
+-  Known issues with module imports
+-  Installation and execution problems
+
+## 💡 Installation Guide
+
+For the best experience, install version 1.0.3:
+
+```bash
+# Install specific version globally
+npm install -g dirgo@1.0.3
+
+# Or run with npx
+npx dirgo@1.0.3
 ```
 
 ## 🤝 Contributing
