@@ -1,6 +1,6 @@
 {
 	"name": "dirgo",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "Directory structure generator with LLM context support",
 	"main": "index.js",
 	"type": "module",

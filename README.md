@@ -196,7 +196,7 @@ npx dirgo
 
 ## 📝 Version History
 
-### v1.0.5 (Current Stable)
+### v1.0.7 (Current Stable)
 
 ✅ **Recommended version for full functionality**
 
@@ -206,6 +206,7 @@ npx dirgo
 -  Fixed emoji display in LLM context
 -  Memory optimization
 -  Fixed project structure display
+-  Added default clipboard copying
 
 ### v1.0.4
 
