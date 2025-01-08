@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+
+// Explicitly mark as module
+/**
+ * @type {import('commander').Command}
+ */
+
 import { program } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
@@ -9,9 +15,9 @@ import ora from 'ora';
 import clipboard from 'clipboardy';
 import { fileURLToPath } from 'url';
 
+// File path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const FILE_EMOJIS = {
 	'.js': '📄',
 	'.ts': '📄',
@@ -39,13 +45,9 @@ const FILE_EMOJIS = {
 	folder: '📁',
 };
 
-const CONTEXT_CONFIG = {
-	maxFilePreviewSize: 1024 * 10,
-	maxFilesToAnalyze: 100,
-	codeFileTypes: ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.go', '.rs'],
-	docFileTypes: ['.md', '.txt', '.doc', '.pdf'],
-	dependencyFiles: ['package.json', 'requirements.txt', 'go.mod', 'Cargo.toml', 'pom.xml'],
-};
+// const CONTEXT_CONFIG = {
+// 	dependencyFiles: ['package.json', 'requirements.txt', 'go.mod'],
+// };
 
 const DEFAULT_EXCLUDES = ['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.cache', '.DS_Store'];
 
@@ -54,6 +56,10 @@ function getEmoji(filename, isDirectory) {
 	if (FILE_EMOJIS[filename]) return FILE_EMOJIS[filename];
 	const ext = path.extname(filename);
 	return FILE_EMOJIS[ext] || FILE_EMOJIS.default;
+}
+//This should fix the clipboard copy thing with the emojis
+function stripAnsi(string) {
+	return string.replace(/\x1B\[\d+m/g, '');
 }
 
 function formatSize(bytes) {
@@ -89,164 +95,141 @@ async function detectProjectType(directory) {
 	}
 }
 
-async function getDirectoryStats(dirPath) {
-	let totalSize = 0,
-		fileCount = 0,
-		dirCount = 0;
-
-	async function calculateSize(currentPath) {
-		const items = await fs.readdir(currentPath, { withFileTypes: true });
-
-		for (const item of items) {
-			const fullPath = path.join(currentPath, item.name);
-			if (DEFAULT_EXCLUDES.includes(item.name)) continue;
-
-			if (item.isDirectory()) {
-				dirCount++;
-				await calculateSize(fullPath);
-			} else {
-				fileCount++;
-				const stats = await fs.stat(fullPath);
-				totalSize += stats.size;
-			}
-		}
-	}
-
-	await calculateSize(dirPath);
-	return { size: formatSize(totalSize), files: fileCount, directories: dirCount };
-}
-
-async function analyzeCodeFile(filePath, content) {
-	const ext = path.extname(filePath);
-	const fileSize = (await fs.stat(filePath)).size;
-	const lines = content.split('\n');
-
-	const importLines = lines.filter((line) => {
-		const trimmed = line.trim();
-		return trimmed.startsWith('import ') || trimmed.startsWith('from ') || trimmed.startsWith('require(');
-	});
-
-	const exportLines = lines.filter((line) => {
-		const trimmed = line.trim();
-		return trimmed.startsWith('export ') || trimmed.startsWith('module.exports');
-	});
-
-	const functionMatches = content.match(/function\s+\w+\s*\(|const\s+\w+\s*=\s*\(|class\s+\w+/g) || [];
-
-	return {
-		type: 'code',
-		extension: ext,
-		size: formatSize(fileSize),
-		lineCount: lines.length,
-		imports: importLines.length,
-		exports: exportLines.length,
-		functions: functionMatches.length,
-		preview: content.length > CONTEXT_CONFIG.maxFilePreviewSize ? content.slice(0, CONTEXT_CONFIG.maxFilePreviewSize) + '...' : content,
-	};
-}
-
-async function analyzeDependencies(projectPath) {
+async function analyzeDependencies(directory) {
 	const dependencies = {};
+	const depFiles = {
+		'package.json': 'npm',
+		'requirements.txt': 'python',
+		'go.mod': 'go',
+	};
 
-	for (const depFile of CONTEXT_CONFIG.dependencyFiles) {
-		const filePath = path.join(projectPath, depFile);
+	for (const [filename, type] of Object.entries(depFiles)) {
 		try {
-			const content = await fs.readFile(filePath, 'utf8');
+			const content = await fs.readFile(path.join(directory, filename), 'utf8');
 
-			switch (depFile) {
-				case 'package.json': {
-					const pkg = JSON.parse(content);
-					dependencies.npm = {
-						...pkg.dependencies,
-						...pkg.devDependencies,
-					};
-					break;
-				}
-				case 'requirements.txt': {
-					const lines = content.split('\n');
-					dependencies.python = {};
-					for (const line of lines) {
-						if (line.trim() && !line.startsWith('#')) {
-							const [name, version] = line.split('==');
-							dependencies.python[name.trim()] = version?.trim() || 'latest';
-						}
-					}
-					break;
-				}
-				case 'go.mod': {
-					const lines = content.split('\n');
-					dependencies.go = {};
-					for (const line of lines) {
-						if (line.startsWith('require')) {
-							dependencies.go[line.replace('require', '').trim()] = 'specified';
-						}
-					}
-					break;
-				}
+			if (filename === 'package.json') {
+				const { dependencies: deps, devDependencies } = JSON.parse(content);
+				dependencies[type] = { ...deps, ...devDependencies };
+			} else if (filename === 'requirements.txt') {
+				const deps = {};
+				content
+					.split('\n')
+					.filter((line) => line.trim() && !line.startsWith('#'))
+					.forEach((line) => {
+						const [name, version] = line.split('==');
+						deps[name.trim()] = version?.trim() || 'latest';
+					});
+				dependencies[type] = deps;
+			} else if (filename === 'go.mod') {
+				const deps = {};
+				content
+					.split('\n')
+					.filter((line) => line.trim().startsWith('require'))
+					.forEach((line) => {
+						const dep = line.replace('require', '').trim();
+						deps[dep] = 'specified';
+					});
+				dependencies[type] = deps;
 			}
 		} catch {
 			continue;
 		}
 	}
+
 	return dependencies;
 }
 
-async function generateStructure(dir, prefix = '', isLast = true, ignoreRules, baseDir, options) {
-	const items = await fs.readdir(dir, { withFileTypes: true });
-	let output = '';
+async function generateStructure(dir, ignoreRules, baseDir, options) {
+	const queue = [
+		{
+			path: dir,
+			prefix: '',
+			depth: 0,
+		},
+	];
 
-	const filteredItems = items
-		.filter((item) => !ignoreRules.ignores(path.relative(baseDir, path.join(dir, item.name))))
-		.sort((a, b) => {
-			if (a.isDirectory() === b.isDirectory()) return a.name.localeCompare(b.name);
-			return a.isDirectory() ? -1 : 1;
-		});
+	let colorOutput = '';
+	let plainOutput = '';
 
-	for (let i = 0; i < filteredItems.length; i++) {
-		const item = filteredItems[i];
-		const isLastItem = i === filteredItems.length - 1;
-		const fullPath = path.join(dir, item.name);
+	while (queue.length > 0) {
+		const { path: currentPath, prefix, depth } = queue.shift();
 
-		const linePrefix = prefix + (isLastItem ? '└── ' : '├── ');
-		const nextPrefix = prefix + (isLastItem ? '    ' : '│   ');
-		const emoji = options.emoji ? getEmoji(item.name, item.isDirectory()) + ' ' : '';
-		const itemName = item.isDirectory() ? chalk.blue(item.name + '/') : chalk.white(item.name);
+		try {
+			const entries = await fs.readdir(currentPath, { withFileTypes: true });
+			const items = entries
+				.filter((entry) => {
+					if (DEFAULT_EXCLUDES.includes(entry.name)) return false;
+					const relativePath = path.relative(baseDir, path.join(currentPath, entry.name));
+					return !ignoreRules.ignores(relativePath);
+				})
+				.sort((a, b) => {
+					if (a.isDirectory() === b.isDirectory()) {
+						return a.name.localeCompare(b.name);
+					}
+					return a.isDirectory() ? -1 : 1;
+				});
 
-		let statsString = '';
-		if (options.stats) {
-			try {
-				if (item.isDirectory()) {
-					const dirStats = await getDirectoryStats(fullPath);
-					statsString = chalk.gray(` [${dirStats.files} files, ${dirStats.directories} dirs, ${dirStats.size}]`);
-				} else {
-					const stats = await fs.stat(fullPath);
-					statsString = chalk.gray(` [${formatSize(stats.size)}]`);
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				const isLast = i === items.length - 1;
+				const fullPath = path.join(currentPath, item.name);
+				const linePrefix = prefix + (isLast ? '└── ' : '├── ');
+				const nextPrefix = prefix + (isLast ? '    ' : '│   ');
+
+				const emoji = options.emoji ? getEmoji(item.name, item.isDirectory()) + ' ' : '';
+
+				const coloredName = item.isDirectory() ? chalk.blue(item.name + '/') : chalk.white(item.name);
+				const plainName = item.name + (item.isDirectory() ? '/' : '');
+
+				let coloredStats = '';
+				let plainStats = '';
+				if (options.stats) {
+					try {
+						const stats = await fs.stat(fullPath);
+						const sizeStr = ` [${formatSize(stats.size)}]`;
+						coloredStats = chalk.gray(sizeStr);
+						plainStats = sizeStr;
+					} catch {
+						const errorStr = ' [error]';
+						coloredStats = chalk.red(errorStr);
+						plainStats = errorStr;
+					}
 				}
-			} catch {
-				statsString = chalk.red(' [error reading stats]');
+
+				colorOutput += `${linePrefix}${emoji}${coloredName}${coloredStats}\n`;
+				plainOutput += `${linePrefix}${emoji}${plainName}${plainStats}\n`;
+
+				if (item.isDirectory() && depth < 20) {
+					queue.push({
+						path: fullPath,
+						prefix: nextPrefix,
+						depth: depth + 1,
+					});
+				}
 			}
-		}
-
-		output += linePrefix + emoji + itemName + statsString + '\n';
-
-		if (item.isDirectory()) {
-			output += await generateStructure(fullPath, nextPrefix, isLastItem, ignoreRules, baseDir, options);
+		} catch (error) {
+			const errorMsg = `${prefix}Error reading ${currentPath}: ${error.message}\n`;
+			colorOutput += chalk.red(errorMsg);
+			plainOutput += errorMsg;
 		}
 	}
-	return output;
-}
 
+	return {
+		colorOutput,
+		plainOutput,
+	};
+}
 async function generateLLMContext(directory) {
 	const projectType = await detectProjectType(directory);
 	const ignoreHelper = ignore().add(DEFAULT_EXCLUDES);
 	let context = `Project Type: ${projectType}\n\n`;
 
-	const structure = await generateStructure(directory, '', true, ignoreHelper, directory, {
+	const { plainOutput } = await generateStructure(directory, ignoreHelper, directory, {
 		emoji: true,
 		stats: true,
 	});
 
-	context += `Project Structure:\n${structure}\n\n`;
+	context += `Project Structure:\n${plainOutput}\n\n`;
 
 	try {
 		const dependencies = await analyzeDependencies(directory);
@@ -266,42 +249,43 @@ async function generateLLMContext(directory) {
 
 	return context;
 }
+
 async function quickGenerate(directory = '.', options = {}, spinner = null) {
 	try {
 		const ignoreHelper = options.ignoreRules || ignore().add(DEFAULT_EXCLUDES);
 		const gitignorePatterns = await readGitignore(directory);
 		ignoreHelper.add(gitignorePatterns);
 
-		const structure = await generateStructure(directory, '', true, ignoreHelper, directory, {
+		const { colorOutput, plainOutput } = await generateStructure(directory, ignoreHelper, directory, {
 			emoji: options.emoji !== false,
 			...options,
 		});
 
 		if (options.copy) {
-			await clipboard.write(structure);
+			await clipboard.write(plainOutput);
 			console.log(chalk.green('📋 Copied to clipboard!'));
 		}
 
 		if (options.output === 'file' || options.output === 'both') {
-			const filename = options.filename || `project-structure-${Date.now()}.txt`;
-			await fs.writeFile(filename, structure);
+			const filename = options.filename || `structure-${Date.now()}.txt`;
+			await fs.writeFile(filename, plainOutput);
 			console.log(chalk.green(`✨ Saved to ${filename}`));
 		}
 
 		if (options.output !== 'file') {
-			console.log('\n' + structure);
+			console.log('\n' + colorOutput);
 		}
 
 		if (spinner) {
 			spinner.succeed('Done!');
 		}
 
-		return structure;
+		return plainOutput;
 	} catch (error) {
 		if (spinner) {
 			spinner.fail('Error generating structure');
 		}
-		console.error(chalk.red(error.message));
+		console.error(chalk.red('Error:', error.message));
 		process.exit(1);
 	}
 }
@@ -392,7 +376,6 @@ async function interactiveMode() {
 			]);
 			options = { ...options, ...customOptions };
 		} else {
-			// Default options for quick actions
 			options = {
 				...options,
 				emoji: true,
@@ -591,3 +574,74 @@ $ npx projmap --help
 		);
 	});
 program.parse();
+
+/**
+ * async function getQuickDirStats(dirPath) {
+	try {
+		const entries = await fs.readdir(dirPath, { withFileTypes: true });
+		return {
+			files: entries.filter((e) => !e.isDirectory()).length,
+			dirs: entries.filter((e) => e.isDirectory()).length,
+		};
+	} catch {
+		return { files: 0, dirs: 0 };
+	}
+}
+
+async function analyzeCodeFile(filePath, content) {
+	const ext = path.extname(filePath);
+	const fileSize = (await fs.stat(filePath)).size;
+	const lines = content.split('\n');
+
+	const importLines = lines.filter((line) => {
+		const trimmed = line.trim();
+		return trimmed.startsWith('import ') || trimmed.startsWith('from ') || trimmed.startsWith('require(');
+	});
+
+	const exportLines = lines.filter((line) => {
+		const trimmed = line.trim();
+		return trimmed.startsWith('export ') || trimmed.startsWith('module.exports');
+	});
+
+	const functionMatches = content.match(/function\s+\w+\s*\(|const\s+\w+\s*=\s*\(|class\s+\w+/g) || [];
+
+	return {
+		type: 'code',
+		extension: ext,
+		size: formatSize(fileSize),
+		lineCount: lines.length,
+		imports: importLines.length,
+		exports: exportLines.length,
+		functions: functionMatches.length,
+		preview: content.length > CONTEXT_CONFIG.maxFilePreviewSize ? content.slice(0, CONTEXT_CONFIG.maxFilePreviewSize) + '...' : content,
+	};
+}
+
+
+async function getDirectoryStats(dirPath) {
+	let totalSize = 0,
+		fileCount = 0,
+		dirCount = 0;
+
+	async function calculateSize(currentPath) {
+		const items = await fs.readdir(currentPath, { withFileTypes: true });
+
+		for (const item of items) {
+			const fullPath = path.join(currentPath, item.name);
+			if (DEFAULT_EXCLUDES.includes(item.name)) continue;
+
+			if (item.isDirectory()) {
+				dirCount++;
+				await calculateSize(fullPath);
+			} else {
+				fileCount++;
+				const stats = await fs.stat(fullPath);
+				totalSize += stats.size;
+			}
+		}
+	}
+
+	await calculateSize(dirPath);
+	return { size: formatSize(totalSize), files: fileCount, directories: dirCount };
+}
+ */

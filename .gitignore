@@ -1,17 +1,10 @@
-
-
-### react ###
-.DS_*
-*.log
-logs
-**/*.backup.*
-**/*.back.*
-
 node_modules
-bower_components
-
-*.sublime*
-
-psd
-thumb
-sketch
+.DS_Store
+*.log
+coverage
+dist
+build
+.env
+.vscode
+.idea
+.cache
