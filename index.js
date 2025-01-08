@@ -96,7 +96,19 @@ async function detectProjectType(directory) {
 
 async function analyzeDependencies(directory) {
 	const dependencies = {};
+	//js dependencies
+	try {
+		const packageJsonPath = path.join(directory, 'package.json');
+		const content = await fs.readFile(packageJsonPath, 'utf8');
+		const packageJson = JSON.parse(content);
 
+		dependencies.npm = {
+			dependencies: packageJson.dependencies || {},
+			devDependencies: packageJson.devDependencies || {},
+		};
+	} catch {
+		// console.log('package.json not found or unreadable');
+	}
 	// Go dependencies
 	try {
 		const goModPath = path.join(directory, 'go.mod');
@@ -150,7 +162,7 @@ async function analyzeDependencies(directory) {
 			}
 		}
 	} catch {
-		console.log(' go.mod not found or unreadable');
+		// console.log(' go.mod not found or unreadable');
 	}
 
 	try {
@@ -211,7 +223,7 @@ async function analyzeDependencies(directory) {
 				}
 			}
 		} catch {
-			console.log('Neither requirements.txt nor pyproject.toml found');
+			// console.log('Neither requirements.txt nor pyproject.toml found');
 		}
 	}
 
@@ -345,10 +357,22 @@ async function generateLLMContext(directory, options = {}) {
 
 			if (dependencies.npm) {
 				context += `NPM Dependencies:\n`;
-				Object.entries(dependencies.npm).forEach(([dep, version]) => {
-					context += `- ${dep}: ${version}\n`;
-				});
-				context += '\n';
+
+				if (dependencies.npm.dependencies) {
+					context += `Regular Dependencies:\n`;
+					Object.entries(dependencies.npm.dependencies).forEach(([dep, version]) => {
+						context += `- ${dep}: ${version}\n`;
+					});
+					context += '\n';
+				}
+
+				if (dependencies.npm.devDependencies) {
+					context += `Dev Dependencies:\n`;
+					Object.entries(dependencies.npm.devDependencies).forEach(([dep, version]) => {
+						context += `- ${dep}: ${version}\n`;
+					});
+					context += '\n';
+				}
 			}
 		}
 	} catch (error) {
