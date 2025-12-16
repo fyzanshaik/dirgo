@@ -9,7 +9,10 @@ Supports Node.js/TypeScript, Python, Go, and Rust projects with intelligent mono
 ```bash
 npm install -g dirgo
 ```
-
+For bun:
+```bash
+bun install -g dirgo
+```
 Or run directly:
 
 ```bash
