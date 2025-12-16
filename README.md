@@ -56,11 +56,12 @@ dirgo context --depth 2      # Limit tree depth
 ```
 
 Output includes:
-- Project type detection (node, python, go, rust)
-- Directory structure
-- Dependencies (regular, dev, indirect)
-- tsconfig.json paths and settings
-- Monorepo workspace packages
+
+-  Project type detection (node, python, go, rust)
+-  Directory structure
+-  Dependencies (regular, dev, indirect)
+-  tsconfig.json paths and settings
+-  Monorepo workspace packages
 
 ### `dirgo deps`
 
@@ -92,20 +93,21 @@ dirgo context --help    # Context command help
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-d, --dir <path>` | Target directory | `.` |
-| `-e, --emoji` | Enable emojis in output | `false` |
-| `-o, --output <file>` | Write to file instead of stdout | - |
-| `--no-copy` | Disable clipboard copy | `false` |
-| `--format <type>` | Output format: `tree`, `toon`, `json` | `tree` |
-| `--depth <n>` | Limit tree depth | unlimited |
-| `--focus <path>` | Only expand specific subtree | - |
-| `--include-all` | Include node_modules, .git, etc. | `false` |
+| Option                | Description                           | Default   |
+| --------------------- | ------------------------------------- | --------- |
+| `-d, --dir <path>`    | Target directory                      | `.`       |
+| `-e, --emoji`         | Enable emojis in output               | `false`   |
+| `-o, --output <file>` | Write to file instead of stdout       | -         |
+| `--no-copy`           | Disable clipboard copy                | `false`   |
+| `--format <type>`     | Output format: `tree`, `toon`, `json` | `tree`    |
+| `--depth <n>`         | Limit tree depth                      | unlimited |
+| `--focus <path>`      | Only expand specific subtree          | -         |
+| `--include-all`       | Include node_modules, .git, etc.      | `false`   |
 
 ## Output Formats
 
 ### Tree (default)
+
 ```
 ├── src/
 │   ├── index.ts
@@ -117,6 +119,7 @@ dirgo context --help    # Context command help
 ```
 
 ### TOON (Tree Object-Oriented Notation)
+
 ```
 src/
   index.ts
@@ -128,6 +131,7 @@ package.json
 ```
 
 ### JSON
+
 ```json
 {
   "project": { "type": "node" },
@@ -139,22 +143,23 @@ package.json
 
 ## Language Support
 
-| Language | Files Parsed | What's Extracted |
-|----------|--------------|------------------|
-| **Node.js/TypeScript** | `package.json`, `tsconfig.json` | deps, devDeps, paths, compiler options |
-| **Python** | `pyproject.toml`, `requirements.txt`, `Pipfile` | deps, python version, build system |
-| **Go** | `go.mod`, `go.work` | deps (direct/indirect), go version |
-| **Rust** | `Cargo.toml` | deps, edition, workspace members |
+| Language               | Files Parsed                                    | What's Extracted                       |
+| ---------------------- | ----------------------------------------------- | -------------------------------------- |
+| **Node.js/TypeScript** | `package.json`, `tsconfig.json`                 | deps, devDeps, paths, compiler options |
+| **Python**             | `pyproject.toml`, `requirements.txt`, `Pipfile` | deps, python version, build system     |
+| **Go**                 | `go.mod`, `go.work`                             | deps (direct/indirect), go version     |
+| **Rust**               | `Cargo.toml`                                    | deps, edition, workspace members       |
 
 ## Monorepo Detection
 
 Automatically detects and analyzes:
-- npm/yarn/pnpm workspaces
-- Turborepo
-- Nx
-- Lerna
-- Go workspaces (`go.work`)
-- Cargo workspaces
+
+-  npm/yarn/pnpm workspaces
+-  Turborepo
+-  Nx
+-  Lerna
+-  Go workspaces (`go.work`)
+-  Cargo workspaces
 
 ## Library Usage
 
@@ -165,9 +170,9 @@ import { scan, buildContext, buildTree, buildDeps } from 'dirgo';
 
 // Scan directory
 const result = await scan({ dir: './my-project' });
-console.log(result.projectInfo.type);        // 'node' | 'python' | 'go' | 'rust'
+console.log(result.projectInfo.type); // 'node' | 'python' | 'go' | 'rust'
 console.log(result.projectInfo.dependencies);
-console.log(result.monorepo);                // workspace info if detected
+console.log(result.monorepo); // workspace info if detected
 
 // Build full LLM context
 const context = await buildContext({ dir: '.' });
@@ -187,22 +192,22 @@ console.log(deps.text);
 
 ```typescript
 // Core functions
-scan(options)           // Directory scan with project detection
-buildContext(options)   // Full LLM context
-buildTree(options)      // Just directory tree
-buildDeps(dir)          // Just dependencies
+scan(options); // Directory scan with project detection
+buildContext(options); // Full LLM context
+buildTree(options); // Just directory tree
+buildDeps(dir); // Just dependencies
 
 // Utilities
-estimateTokens(text)    // Estimate token count
-formatTokens(count)     // Format as "~123 tokens"
-detectProjectType(dir)  // Detect project type
-parseProject(dir, type) // Parse project info
-detectMonorepo(dir)     // Detect monorepo
+estimateTokens(text); // Estimate token count
+formatTokens(count); // Format as "~123 tokens"
+detectProjectType(dir); // Detect project type
+parseProject(dir, type); // Parse project info
+detectMonorepo(dir); // Detect monorepo
 
 // Formatters
-formatTree(entries, emoji)  // ASCII tree
-formatToon(entries)         // TOON notation
-formatJson(result)          // JSON output
+formatTree(entries, emoji); // ASCII tree
+formatToon(entries); // TOON notation
+formatJson(result); // JSON output
 ```
 
 ## MCP Integration
@@ -214,42 +219,45 @@ dirgo can run as an MCP (Model Context Protocol) server, allowing AI agents like
 Add to your MCP configuration:
 
 **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
 ```json
 {
-  "mcpServers": {
-    "dirgo": {
-      "command": "dirgo",
-      "args": ["serve"]
-    }
-  }
+	"mcpServers": {
+		"dirgo": {
+			"command": "dirgo",
+			"args": ["serve"]
+		}
+	}
 }
 ```
 
 **Cursor** (`.cursor/mcp.json`):
+
 ```json
 {
-  "mcpServers": {
-    "dirgo": {
-      "command": "dirgo",
-      "args": ["serve"]
-    }
-  }
+	"mcpServers": {
+		"dirgo": {
+			"command": "dirgo",
+			"args": ["serve"]
+		}
+	}
 }
 ```
 
 ### Available MCP Tools
 
-| Tool | Description |
-|------|-------------|
-| `dirgo_tree` | Get directory structure |
+| Tool            | Description                    |
+| --------------- | ------------------------------ |
+| `dirgo_tree`    | Get directory structure        |
 | `dirgo_context` | Get full LLM context with deps |
-| `dirgo_deps` | Get project dependencies |
+| `dirgo_deps`    | Get project dependencies       |
 
 Each tool accepts:
-- `dir` (string) - Target directory path
-- `emoji` (boolean) - Include emojis
-- `format` (string) - `tree`, `toon`, or `json`
-- `depth` (number) - Max traversal depth
+
+-  `dir` (string) - Target directory path
+-  `emoji` (boolean) - Include emojis
+-  `format` (string) - `tree`, `toon`, or `json`
+-  `depth` (number) - Max traversal depth
 
 ## Use Cases
 
@@ -304,10 +312,11 @@ This helps you stay within LLM context limits.
 ## Ignored by Default
 
 The following are excluded by default:
-- `node_modules`, `.git`, `dist`, `build`
-- `.next`, `.nuxt`, `.output`, `coverage`
-- `__pycache__`, `.pytest_cache`, `.venv`, `venv`
-- `target` (Rust), `.cache`, `.turbo`
+
+-  `node_modules`, `.git`, `dist`, `build`
+-  `.next`, `.nuxt`, `.output`, `coverage`
+-  `__pycache__`, `.pytest_cache`, `.venv`, `venv`
+-  `target` (Rust), `.cache`, `.turbo`
 
 Use `--include-all` to include everything.
 
