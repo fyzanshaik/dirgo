@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+@theme {
+	--font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+	--font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+
+	--color-ink: #0a0a0a;
+	--color-paper: #fafaf9;
+	--color-accent: #22c55e;
+	--color-muted: #71717a;
+	--color-border: #e4e4e7;
+
+	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fade-up {
+	from {
+		opacity: 0;
+		transform: translateY(24px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes slide-in-left {
+	from {
+		opacity: 0;
+		transform: translateX(-16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes terminal-blink {
+	0%,
+	50% {
+		opacity: 1;
+	}
+	51%,
+	100% {
+		opacity: 0;
+	}
+}
+
+@keyframes type {
+	from {
+		width: 0;
+	}
+	to {
+		width: 100%;
+	}
+}
+
+.animate-fade-up {
+	animation: fade-up 0.8s var(--ease-out-expo) forwards;
+	opacity: 0;
+}
+
+.animate-fade-in {
+	animation: fade-in 0.6s var(--ease-out-expo) forwards;
+	opacity: 0;
+}
+
+.animate-slide-left {
+	animation: slide-in-left 0.6s var(--ease-out-expo) forwards;
+	opacity: 0;
+}
+
+.stagger-1 {
+	animation-delay: 0.1s;
+}
+.stagger-2 {
+	animation-delay: 0.2s;
+}
+.stagger-3 {
+	animation-delay: 0.3s;
+}
+.stagger-4 {
+	animation-delay: 0.4s;
+}
+.stagger-5 {
+	animation-delay: 0.5s;
+}
+.stagger-6 {
+	animation-delay: 0.6s;
+}
+.stagger-7 {
+	animation-delay: 0.7s;
+}
+.stagger-8 {
+	animation-delay: 0.8s;
+}
+
+.terminal-cursor::after {
+	content: '▋';
+	animation: terminal-blink 1s steps(1) infinite;
+	color: var(--color-accent);
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+::selection {
+	background: var(--color-accent);
+	color: var(--color-ink);
+}

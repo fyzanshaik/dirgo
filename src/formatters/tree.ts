@@ -169,3 +169,4 @@ export function formatTree(entries: FileEntry[], useEmoji: boolean): string {
   return result;
 }
 
+

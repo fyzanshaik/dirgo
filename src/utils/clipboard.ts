@@ -27,3 +27,4 @@ export function formatCopyStatus(
   return `[${sizeStr} · ${tokenStr}]`;
 }
 
+

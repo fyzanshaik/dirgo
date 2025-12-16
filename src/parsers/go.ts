@@ -91,3 +91,4 @@ export async function parseGoProject(dir: string): Promise<ProjectInfo> {
   };
 }
 
+

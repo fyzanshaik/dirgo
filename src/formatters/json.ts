@@ -84,3 +84,4 @@ export function formatJson(result: ScanResult): ContextResult {
   };
 }
 
+

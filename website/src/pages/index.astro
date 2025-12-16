@@ -1,0 +1,567 @@
+---
+import "../styles/global.css";
+
+const features = [
+  { icon: "⚡", title: "Instant Output", desc: "No spinners, no loading bars. Results stream the moment you press enter. Built for speed with Bun." },
+  { icon: "📋", title: "Auto Clipboard", desc: "Output copies automatically. Just Cmd+V into ChatGPT, Claude, or Cursor. Zero extra steps." },
+  { icon: "🎯", title: "Token Aware", desc: "Every output shows estimated tokens. Know exactly how much context you're using before hitting limits." },
+  { icon: "🔍", title: "Smart Detection", desc: "Auto-detects project type, package manager, monorepo structure, and extracts relevant configs." },
+  { icon: "🌳", title: "Multiple Formats", desc: "ASCII tree (default), TOON notation, or JSON. Pick what works best for your LLM or documentation." },
+  { icon: "🤖", title: "MCP Ready", desc: "Built-in Model Context Protocol server. Let AI agents query your project structure programmatically." },
+];
+
+const useCases = [
+  {
+    title: "Onboarding to a New Codebase",
+    desc: "Paste project structure into Claude or ChatGPT and ask \"What does this project do?\" Get instant architecture overview.",
+    cmd: "dirgo context",
+    output: `Project: node (npm) [typescript]
+
+├── src/
+│   ├── api/
+│   ├── components/
+│   └── utils/
+├── package.json
+└── tsconfig.json
+
+Dependencies (12):
+  react: ^18.2.0
+  next: ^14.0.0
+  ...`
+  },
+  {
+    title: "Debugging with AI",
+    desc: "Show the AI exactly where files are located. No more \"I can't see your project structure\" responses.",
+    cmd: "dirgo --focus src/api",
+    output: `└── src/
+    └── api/
+        ├── routes/
+        │   ├── auth.ts
+        │   ├── users.ts
+        │   └── index.ts
+        ├── middleware/
+        │   └── auth.ts
+        └── client.ts`
+  },
+  {
+    title: "Documentation Generation",
+    desc: "Generate README sections or architecture docs. The emoji mode makes it documentation-ready.",
+    cmd: "dirgo -e --depth 2",
+    output: `├── 📁 src/
+│   ├── 📁 components/
+│   ├── 📁 hooks/
+│   └── 📁 utils/
+├── 📁 tests/
+├── 📦 package.json
+├── ⚙️ tsconfig.json
+└── 📚 README.md`
+  },
+];
+
+const languages = [
+  { name: "Node.js / TypeScript", files: "package.json, tsconfig.json", color: "#22c55e", details: "Dependencies, scripts, TS compiler options, strict mode detection" },
+  { name: "Python", files: "pyproject.toml, requirements.txt, Pipfile", color: "#3b82f6", details: "Dependencies, dev dependencies, Python version constraints" },
+  { name: "Go", files: "go.mod, go.work", color: "#06b6d4", details: "Module path, Go version, direct and indirect dependencies" },
+  { name: "Rust", files: "Cargo.toml", color: "#f97316", details: "Dependencies, features, dev dependencies, workspace members" },
+];
+
+const comparisons = [
+  { action: "Screenshot + paste image", time: "30 sec", friction: "High (wastes tokens on pixels)" },
+  { action: "tree command + manual copy", time: "15 sec", friction: "Medium (includes node_modules, .git)" },
+  { action: "AI agents using tree/ls", time: "5-10 sec", friction: "Medium (extra context, no deps)" },
+  { action: "dirgo", time: "< 1 sec", friction: "None", highlight: true },
+];
+
+const mcpTools = [
+  { name: "dirgo_tree", desc: "Get directory structure with optional depth, format, and emoji settings", example: '{ "dir": ".", "depth": 2, "format": "tree" }' },
+  { name: "dirgo_context", desc: "Full project context: structure + dependencies + configs", example: '{ "dir": "/path/to/project" }' },
+  { name: "dirgo_deps", desc: "Dependencies only, parsed from project manifest", example: '{ "dir": "." }' },
+];
+
+const whyAgents = [
+  { title: "Structured, Parseable Output", desc: "JSON format enables programmatic processing. No regex needed to extract file paths." },
+  { title: "Token Efficient", desc: "TOON format uses ~30% fewer tokens than ASCII trees. Every token counts in context windows." },
+  { title: "Consistent Interface", desc: "Same tool works across Node, Python, Go, Rust. One integration, all project types." },
+  { title: "No Hallucination Risk", desc: "Real file system data, not guessed structure. Ground truth for accurate code generation." },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="dirgo - Fast directory structure generator with LLM context support. Instantly copy project structure to clipboard for AI assistants." />
+    <meta property="og:title" content="dirgo — Directory Structure for LLMs" />
+    <meta property="og:description" content="One command to copy your project structure. Built for AI-assisted development." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>dirgo — Directory Structure for LLMs</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-paper text-ink font-[family-name:var(--font-display)] antialiased">
+    
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-paper/80 backdrop-blur-md border-b border-border">
+      <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href="/" class="font-bold text-xl">dir<span class="text-accent">go</span></a>
+        <div class="flex items-center gap-6 text-sm">
+          <a href="#use-cases" class="text-muted hover:text-ink transition-colors">Use Cases</a>
+          <a href="#languages" class="text-muted hover:text-ink transition-colors">Languages</a>
+          <a href="#mcp" class="text-muted hover:text-ink transition-colors">MCP</a>
+          <a href="https://github.com/fyzanshaik/dirgo" target="_blank" class="flex items-center gap-1.5 text-muted hover:text-ink transition-colors">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="pt-16">
+      <!-- Hero -->
+      <section class="relative overflow-hidden pt-24 pb-32 px-6">
+        <div class="absolute inset-0 opacity-[0.02]" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 60px, currentColor 60px, currentColor 61px), repeating-linear-gradient(90deg, transparent, transparent 60px, currentColor 60px, currentColor 61px);"></div>
+        
+        <div class="max-w-5xl mx-auto relative">
+          <div class="animate-fade-up">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-sm text-muted mb-8">
+              <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+              v2.0.0 — TypeScript rewrite with MCP support
+            </span>
+          </div>
+          
+          <h1 class="text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight leading-[0.9] mb-6 animate-fade-up stagger-1">
+            dir<span class="text-accent">go</span>
+          </h1>
+          
+          <p class="text-2xl md:text-3xl text-muted mb-2 animate-fade-up stagger-2">
+            Project structure <span class="text-ink">→</span> clipboard <span class="text-ink">→</span> <span class="text-accent">LLM</span>
+          </p>
+          <p class="text-xl md:text-2xl font-medium animate-fade-up stagger-2">
+            One command. Zero friction.
+          </p>
+          
+          <p class="text-lg md:text-xl text-muted max-w-2xl leading-relaxed mt-6 mb-12 animate-fade-up stagger-3">
+            Stop manually describing your codebase to AI. One command copies your project structure, dependencies, and configs — ready to paste.
+          </p>
+          
+          <div class="flex flex-wrap gap-4 mb-16 animate-fade-up stagger-4">
+            <a href="#install" class="inline-flex items-center gap-2 px-6 py-3.5 bg-ink text-paper font-medium rounded-xl hover:bg-ink/90 transition-all hover:scale-[1.02] active:scale-[0.98]">
+              Install Now
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+            </a>
+            <a href="https://github.com/fyzanshaik/dirgo" target="_blank" class="inline-flex items-center gap-2 px-6 py-3.5 border border-amber-400 bg-amber-50 font-medium rounded-xl hover:bg-amber-100 transition-all hover:scale-[1.02] active:scale-[0.98]">
+              <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/></svg>
+              Star on GitHub
+            </a>
+            <a href="#use-cases" class="inline-flex items-center gap-2 px-6 py-3.5 border border-border font-medium rounded-xl hover:border-ink transition-all hover:scale-[1.02] active:scale-[0.98]">
+              See Examples
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </a>
+          </div>
+
+          <div class="bg-ink text-paper rounded-2xl p-6 md:p-8 font-mono text-sm animate-fade-up stagger-5 shadow-2xl">
+            <div class="flex items-center gap-2 mb-6">
+              <span class="w-3 h-3 rounded-full bg-[#ff5f56]"></span>
+              <span class="w-3 h-3 rounded-full bg-[#ffbd2e]"></span>
+              <span class="w-3 h-3 rounded-full bg-[#27c93f]"></span>
+              <span class="ml-auto text-xs text-zinc-500">~/my-saas-app</span>
+            </div>
+            <div class="space-y-0.5 text-[13px] leading-relaxed">
+              <p><span class="text-accent">$</span> dirgo context</p>
+              <p class="text-zinc-500 mt-3">Project: node (npm) [typescript]</p>
+              <p class="text-zinc-400 mt-2">├── src/</p>
+              <p class="text-zinc-400">│   ├── app/</p>
+              <p class="text-zinc-400">│   ├── components/</p>
+              <p class="text-zinc-400">│   ├── lib/</p>
+              <p class="text-zinc-400">│   └── utils/</p>
+              <p class="text-zinc-400">├── prisma/</p>
+              <p class="text-zinc-400">├── package.json</p>
+              <p class="text-zinc-400">└── tsconfig.json</p>
+              <p class="text-zinc-500 mt-3">Dependencies (8):</p>
+              <p class="text-zinc-400">  next: ^14.0.0</p>
+              <p class="text-zinc-400">  prisma: ^5.0.0</p>
+              <p class="text-zinc-400">  ...</p>
+              <p class="text-zinc-500 mt-2">tsconfig.json:</p>
+              <p class="text-zinc-400">  target: ES2022</p>
+              <p class="text-zinc-400">  strict: true</p>
+              <p class="mt-4 text-accent">[copied 892B · ~156 tokens]</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- The Problem -->
+      <section class="py-24 px-6 border-t border-border">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-muted uppercase tracking-wider">The Problem</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">AI can't see your file system</h2>
+            <p class="text-muted mt-4 max-w-2xl mx-auto">Every time you ask ChatGPT or Claude about your code, you waste time explaining your project structure. Even AI CLI agents still use <code class="px-1.5 py-0.5 bg-zinc-100 rounded text-sm font-mono">tree</code> or <code class="px-1.5 py-0.5 bg-zinc-100 rounded text-sm font-mono">ls -R</code> — burning tokens on noise. There's a better way.</p>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="border-b border-border">
+                  <th class="py-4 pr-8 font-medium">Method</th>
+                  <th class="py-4 pr-8 font-medium">Time</th>
+                  <th class="py-4 font-medium">Friction</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisons.map((c) => (
+                  <tr class={`border-b border-border ${c.highlight ? 'bg-accent/5' : ''}`}>
+                    <td class={`py-4 pr-8 ${c.highlight ? 'font-semibold' : ''}`}>
+                      {c.highlight && <span class="text-accent mr-2">→</span>}
+                      {c.action}
+                    </td>
+                    <td class={`py-4 pr-8 font-mono text-sm ${c.highlight ? 'text-accent font-semibold' : 'text-muted'}`}>{c.time}</td>
+                    <td class={`py-4 ${c.highlight ? 'text-accent font-semibold' : 'text-muted'}`}>{c.friction}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features Grid -->
+      <section class="py-24 px-6 bg-zinc-50">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-muted uppercase tracking-wider">Features</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Built for the AI-first workflow</h2>
+          </div>
+          
+          <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((f) => (
+              <div class="group p-6 rounded-2xl bg-paper border border-border hover:border-accent transition-all duration-300 hover:shadow-lg">
+                <span class="text-3xl mb-4 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                <h3 class="text-lg font-semibold mb-2">{f.title}</h3>
+                <p class="text-sm text-muted leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- Use Cases -->
+      <section id="use-cases" class="py-24 px-6 border-t border-border scroll-mt-20">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-muted uppercase tracking-wider">Use Cases</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Real workflows, real examples</h2>
+            <p class="text-muted mt-4 max-w-2xl mx-auto">See exactly how dirgo fits into your AI-assisted development.</p>
+          </div>
+          
+          <div class="space-y-16">
+            {useCases.map((uc, i) => (
+              <div class={`grid md:grid-cols-2 gap-8 items-start ${i % 2 === 1 ? 'md:grid-flow-dense' : ''}`}>
+                <div class={i % 2 === 1 ? 'md:col-start-2' : ''}>
+                  <span class="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium mb-4">Use Case #{i + 1}</span>
+                  <h3 class="text-2xl font-bold mb-3">{uc.title}</h3>
+                  <p class="text-muted leading-relaxed mb-6">{uc.desc}</p>
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="text-muted">Command:</span>
+                    <code class="px-2 py-1 bg-ink text-paper rounded font-mono">{uc.cmd}</code>
+                  </div>
+                </div>
+                <div class={`bg-ink text-paper rounded-2xl p-5 font-mono text-xs ${i % 2 === 1 ? 'md:col-start-1' : ''}`}>
+                  <div class="flex items-center gap-2 mb-4">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></span>
+                  </div>
+                  <pre class="text-zinc-300 whitespace-pre leading-relaxed">{uc.output}</pre>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- Commands -->
+      <section class="py-24 px-6 bg-ink text-paper">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-zinc-500 uppercase tracking-wider">Commands</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Simple CLI, powerful output</h2>
+            <p class="text-zinc-400 mt-4">Four commands. That's it.</p>
+          </div>
+          
+          <div class="grid md:grid-cols-2 gap-6 mb-12">
+            <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 transition-colors">
+              <code class="text-accent text-lg font-semibold">dirgo</code>
+              <p class="text-zinc-400 mt-2 text-sm">Quick tree → copies to clipboard. The default for most tasks.</p>
+              <p class="text-zinc-600 mt-3 text-xs font-mono">alias: dirgo tree</p>
+            </div>
+            <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 transition-colors">
+              <code class="text-accent text-lg font-semibold">dirgo context</code>
+              <p class="text-zinc-400 mt-2 text-sm">Full LLM context: structure + dependencies + configs.</p>
+              <p class="text-zinc-600 mt-3 text-xs font-mono">Best for onboarding AI to your project</p>
+            </div>
+            <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 transition-colors">
+              <code class="text-accent text-lg font-semibold">dirgo deps</code>
+              <p class="text-zinc-400 mt-2 text-sm">Dependencies only. Quick way to show what you're working with.</p>
+              <p class="text-zinc-600 mt-3 text-xs font-mono">Parsed from package.json, Cargo.toml, etc.</p>
+            </div>
+            <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 transition-colors">
+              <code class="text-accent text-lg font-semibold">dirgo serve</code>
+              <p class="text-zinc-400 mt-2 text-sm">Start MCP server for AI agent integrations.</p>
+              <p class="text-zinc-600 mt-3 text-xs font-mono">JSON-RPC over stdio</p>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-white/5 border border-white/10 font-mono text-sm">
+            <p class="text-zinc-500 mb-4"># All the options you might need</p>
+            <div class="grid md:grid-cols-2 gap-x-8 gap-y-2">
+              <p><span class="text-accent">--format</span> <span class="text-zinc-600">tree | toon | json</span></p>
+              <p><span class="text-accent">--depth</span> <span class="text-zinc-600">&lt;n&gt;</span> <span class="text-zinc-700">— limit depth</span></p>
+              <p><span class="text-accent">--emoji</span> <span class="text-zinc-700">— add 📁 📄 icons</span></p>
+              <p><span class="text-accent">--focus</span> <span class="text-zinc-600">&lt;path&gt;</span> <span class="text-zinc-700">— expand only subtree</span></p>
+              <p><span class="text-accent">--no-copy</span> <span class="text-zinc-700">— print only</span></p>
+              <p><span class="text-accent">--output</span> <span class="text-zinc-600">&lt;file&gt;</span> <span class="text-zinc-700">— write to file</span></p>
+              <p><span class="text-accent">--include-all</span> <span class="text-zinc-700">— include .git, etc.</span></p>
+              <p><span class="text-accent">--dir</span> <span class="text-zinc-600">&lt;path&gt;</span> <span class="text-zinc-700">— target directory</span></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Language Support -->
+      <section id="languages" class="py-24 px-6 border-t border-border scroll-mt-20">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-muted uppercase tracking-wider">Language Support</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Works with your stack</h2>
+            <p class="text-muted mt-4 max-w-2xl mx-auto">Parses project manifests to extract dependencies, configs, and workspace structure.</p>
+          </div>
+          
+          <div class="grid md:grid-cols-2 gap-6 mb-12">
+            {languages.map((lang) => (
+              <div class="group relative p-6 rounded-2xl border border-border overflow-hidden hover:border-transparent transition-all duration-300">
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={`background: ${lang.color}08`}></div>
+                <div class="relative">
+                  <div class="flex items-center gap-3 mb-4">
+                    <div class="w-4 h-4 rounded-full" style={`background: ${lang.color}`}></div>
+                    <h3 class="text-lg font-semibold">{lang.name}</h3>
+                  </div>
+                  <p class="text-sm font-mono text-muted mb-3">{lang.files}</p>
+                  <p class="text-sm text-muted">{lang.details}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div class="p-6 rounded-2xl border border-border bg-zinc-50">
+            <div class="flex items-start gap-4">
+              <span class="text-2xl">📦</span>
+              <div>
+                <h4 class="font-semibold mb-2">Monorepo Detection</h4>
+                <p class="text-sm text-muted mb-3">Automatically detects and lists workspace packages:</p>
+                <div class="flex flex-wrap gap-2">
+                  {["npm workspaces", "yarn workspaces", "pnpm workspaces", "Turborepo", "Nx", "Lerna", "Go workspaces", "Cargo workspaces"].map((m) => (
+                    <span class="px-2 py-1 bg-paper border border-border rounded text-xs font-mono">{m}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Why AI Agents Should Use It -->
+      <section class="py-24 px-6 bg-zinc-50">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-muted uppercase tracking-wider">For AI Developers</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Why your AI agent needs dirgo</h2>
+            <p class="text-muted mt-4 max-w-2xl mx-auto">Building AI-powered dev tools? Here's why dirgo should be in your stack.</p>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            {whyAgents.map((w) => (
+              <div class="p-6 rounded-2xl bg-paper border border-border">
+                <h3 class="font-semibold mb-2">{w.title}</h3>
+                <p class="text-sm text-muted">{w.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- MCP Section -->
+      <section id="mcp" class="py-24 px-6 border-t border-border scroll-mt-20">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Model Context Protocol
+            </span>
+            <h2 class="text-3xl md:text-4xl font-bold">Built-in MCP Server</h2>
+            <p class="text-muted mt-4 max-w-2xl mx-auto">Let AI agents query your project structure programmatically. No scraping, no parsing — just clean JSON-RPC.</p>
+          </div>
+
+          <div class="grid lg:grid-cols-3 gap-6 mb-12">
+            {mcpTools.map((t) => (
+              <div class="p-5 rounded-2xl bg-paper border border-border">
+                <code class="text-accent font-mono font-semibold">{t.name}</code>
+                <p class="text-sm text-muted mt-2 mb-4">{t.desc}</p>
+                <pre class="text-xs bg-zinc-100 p-3 rounded-lg overflow-x-auto font-mono text-muted">{t.example}</pre>
+              </div>
+            ))}
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-ink text-paper rounded-2xl p-6 font-mono text-sm">
+              <p class="text-zinc-500 mb-4"># Add to your MCP config (Claude, etc.)</p>
+              <pre class="text-xs leading-relaxed"><code class="text-zinc-300">{`{
+  "mcpServers": {
+    "dirgo": {
+      "command": "dirgo",
+      "args": ["serve"]
+    }
+  }
+}`}</code></pre>
+            </div>
+            <div class="bg-ink text-paper rounded-2xl p-6 font-mono text-sm">
+              <p class="text-zinc-500 mb-4"># Example JSON-RPC request</p>
+              <pre class="text-xs leading-relaxed"><code class="text-zinc-300">{`{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "dirgo_context",
+    "arguments": { "dir": "." }
+  }
+}`}</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output Formats -->
+      <section class="py-24 px-6 bg-ink text-paper">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-16">
+            <span class="text-sm text-zinc-500 uppercase tracking-wider">Output Formats</span>
+            <h2 class="text-3xl md:text-4xl font-bold mt-4">Pick your format</h2>
+            <p class="text-zinc-400 mt-4">ASCII for humans, TOON for token efficiency, JSON for machines.</p>
+          </div>
+
+          <div class="grid lg:grid-cols-3 gap-6">
+            <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div class="flex items-center justify-between mb-4">
+                <span class="font-semibold">Tree (default)</span>
+                <span class="text-xs text-zinc-500">~100 tokens</span>
+              </div>
+              <pre class="text-xs text-zinc-400 font-mono leading-relaxed">{`├── src/
+│   ├── api/
+│   └── utils/
+├── package.json
+└── README.md`}</pre>
+            </div>
+            <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div class="flex items-center justify-between mb-4">
+                <span class="font-semibold">TOON</span>
+                <span class="text-xs text-accent">~70 tokens</span>
+              </div>
+              <pre class="text-xs text-zinc-400 font-mono leading-relaxed">{`src/
+  api/
+  utils/
+package.json
+README.md`}</pre>
+            </div>
+            <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div class="flex items-center justify-between mb-4">
+                <span class="font-semibold">JSON</span>
+                <span class="text-xs text-zinc-500">parseable</span>
+              </div>
+              <pre class="text-xs text-zinc-400 font-mono leading-relaxed">{`{
+  "structure": [
+    {"path": "src", ...},
+    {"path": "src/api", ...}
+  ]
+}`}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Install -->
+      <section id="install" class="py-24 px-6 border-t border-border scroll-mt-20">
+        <div class="max-w-3xl mx-auto text-center">
+          <span class="text-sm text-muted uppercase tracking-wider">Get Started</span>
+          <h2 class="text-3xl md:text-4xl font-bold mt-4 mb-8">Install in seconds</h2>
+          
+          <div class="bg-ink text-paper rounded-2xl p-6 md:p-8 font-mono text-left mb-8">
+            <div class="flex items-center gap-2 mb-6">
+              <span class="w-3 h-3 rounded-full bg-[#ff5f56]"></span>
+              <span class="w-3 h-3 rounded-full bg-[#ffbd2e]"></span>
+              <span class="w-3 h-3 rounded-full bg-[#27c93f]"></span>
+            </div>
+            <div class="space-y-4 text-sm">
+              <div>
+                <p class="text-zinc-500 mb-1"># with npm</p>
+                <p><span class="text-accent">$</span> npm install -g @fyzanshaik/dirgo</p>
+              </div>
+              <div>
+                <p class="text-zinc-500 mb-1"># with bun (faster)</p>
+                <p><span class="text-accent">$</span> bun add -g @fyzanshaik/dirgo</p>
+              </div>
+              <div>
+                <p class="text-zinc-500 mb-1"># then just run</p>
+                <p><span class="text-accent">$</span> dirgo</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-muted mb-8">Works on macOS, Linux, and Windows. Requires Node.js 18+.</p>
+          
+          <div class="flex flex-wrap justify-center gap-4">
+            <a href="https://github.com/fyzanshaik/dirgo" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 border border-border rounded-xl hover:border-ink transition-colors text-sm">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+              View Source
+            </a>
+            <a href="https://www.npmjs.com/package/@fyzanshaik/dirgo" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 border border-border rounded-xl hover:border-ink transition-colors text-sm">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331z"/></svg>
+              npm Package
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="py-32 px-6 bg-ink text-paper">
+        <div class="max-w-4xl mx-auto text-center">
+          <p class="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4">
+            Your AI assistant<br />deserves context.
+          </p>
+          <p class="text-xl text-zinc-400 mb-10">Stop wasting tokens explaining your codebase. Start shipping.</p>
+          <a href="#install" class="inline-flex items-center gap-2 px-8 py-4 bg-accent text-ink font-semibold rounded-xl hover:bg-accent/90 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            Install dirgo
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="py-8 px-6 border-t border-border">
+      <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-ink">dir<span class="text-accent">go</span></span>
+          <span>— Built by <a href="https://github.com/fyzanshaik" class="text-ink hover:text-accent transition-colors">@fyzanshaik</a></span>
+        </div>
+        <div class="flex items-center gap-6">
+          <a href="https://github.com/fyzanshaik/dirgo" class="hover:text-ink transition-colors">GitHub</a>
+          <a href="https://www.npmjs.com/package/@fyzanshaik/dirgo" class="hover:text-ink transition-colors">npm</a>
+          <span class="text-zinc-400">MIT License</span>
+        </div>
+      </div>
+    </footer>
+
+  </body>
+</html>
