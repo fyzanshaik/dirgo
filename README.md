@@ -1,275 +1,316 @@
-# 🌳 dirgo - Smart Directory Trees for LLMs & Devs
+# dirgo
 
-A lightning-fast directory structure generator with LLM context support, code analysis, and dependency tracking.
+Fast directory structure generator with LLM context support. Built for developers and AI agents.
 
-## 🚀 Quick Start
+Supports Node.js/TypeScript, Python, Go, and Rust projects with intelligent monorepo detection.
+
+## Installation
 
 ```bash
-# Install globally
 npm install -g dirgo
+```
 
-# Or run directly
+Or run directly:
+
+```bash
 npx dirgo
+bunx dirgo
 ```
 
-## ✨ Features
-
-### 📁 Quick Structure Generation
+## Quick Start
 
 ```bash
-# Basic tree with emojis
-dirgo
-
-# Without emojis (new!)
-dirgo -n
-
-# Include file stats
-dirgo -s
-
-# Save to file
-dirgo -o file -f project.txt
+dirgo                    # Tree output → clipboard
+dirgo context            # Full LLM context with deps
+dirgo deps               # Dependencies only
+dirgo help               # Show help
 ```
 
-### 🤖 LLM Context Generation
+## Commands
 
-Perfect for providing context to ChatGPT or other LLMs:
+### `dirgo` / `dirgo tree`
+
+Generate directory tree structure.
 
 ```bash
-# Generate LLM-optimized context
-dirgo --llm-context
+dirgo                        # Basic tree, copies to clipboard
+dirgo -e                     # With emojis
+dirgo --format toon          # TOON notation (indentation-based)
+dirgo --format json          # JSON output
+dirgo --depth 3              # Limit depth to 3 levels
+dirgo --focus src/components # Focus on specific subtree
+dirgo -o tree.txt            # Write to file
+dirgo --no-copy              # Don't copy to clipboard
+dirgo --include-all          # Include node_modules, .git, etc.
+```
 
-# Without emojis (new!)
-dirgo -n --llm-context
+### `dirgo context`
 
-# With stats and clipboard copy
-dirgo --llm-context -s -c
+Generate full LLM context including structure, dependencies, and config.
+
+```bash
+dirgo context                # Full context → clipboard
+dirgo context -e             # With emojis
+dirgo context --format json  # JSON output
+dirgo context --depth 2      # Limit tree depth
+```
 
 Output includes:
-- Project type detection (Node.js, Python, Go)
+- Project type detection (node, python, go, rust)
 - Directory structure
-- Comprehensive dependency analysis
-  - Direct and indirect Go dependencies
-  - Python package requirements
-  - Node.js dependencies
-```
+- Dependencies (regular, dev, indirect)
+- tsconfig.json paths and settings
+- Monorepo workspace packages
 
-### 🎯 Smart Features
+### `dirgo deps`
 
--  Go module analysis with direct/indirect dependencies
--  Python dependencies from requirements.txt and pyproject.toml
--  Node.js package.json analysis
--  File statistics and size information
--  Copy to clipboard support
--  Custom ignore patterns
--  Interactive mode
-
-## 🛠️ Command Options
-
-### Basic Commands
+Show project dependencies only.
 
 ```bash
-dirgo              # Basic tree with emojis
-dirgo -n           # Without emojis
-dirgo -s           # Include statistics
-dirgo -d ./path    # Specific directory
-dirgo -c           # Copy to clipboard
+dirgo deps                   # Show all deps
+dirgo deps -d ./my-project   # Specific directory
+dirgo deps -o deps.txt       # Write to file
 ```
 
-### LLM Context
+### `dirgo serve`
+
+Start MCP server for AI agent integration.
 
 ```bash
-dirgo --llm-context          # Full project context
-dirgo --llm-context -s       # With file statistics
-dirgo --llm-context -n -c    # No emojis, copy to clipboard
+dirgo serve
 ```
 
-### Output Options
+### `dirgo help`
+
+Show help information.
 
 ```bash
-dirgo -o file                # Save to file
-dirgo -o both                # Console & file
-dirgo -f custom-name.txt     # Custom filename
+dirgo help              # General help
+dirgo tree --help       # Tree command help
+dirgo context --help    # Context command help
 ```
 
-### Customization
+## Options
 
-```bash
-dirgo -n                     # No emojis (shorthand)
-dirgo --no-emoji            # No emojis (long form)
-dirgo --include-all         # Include node_modules
-dirgo --ignore "dist,build" # Custom ignore patterns
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-d, --dir <path>` | Target directory | `.` |
+| `-e, --emoji` | Enable emojis in output | `false` |
+| `-o, --output <file>` | Write to file instead of stdout | - |
+| `--no-copy` | Disable clipboard copy | `false` |
+| `--format <type>` | Output format: `tree`, `toon`, `json` | `tree` |
+| `--depth <n>` | Limit tree depth | unlimited |
+| `--focus <path>` | Only expand specific subtree | - |
+| `--include-all` | Include node_modules, .git, etc. | `false` |
+
+## Output Formats
+
+### Tree (default)
+```
+├── src/
+│   ├── index.ts
+│   └── utils/
+│       └── helpers.ts
+└── package.json
+
+[copied 123B · ~31 tokens]
 ```
 
-## 🎨 Interactive Mode
+### TOON (Tree Object-Oriented Notation)
+```
+src/
+  index.ts
+  utils/
+    helpers.ts
+package.json
 
-Run with `-i` for an interactive menu:
-
-```bash
-dirgo -i
-
-Provides options for:
-✓ Quick structure generation
-✓ LLM context generation
-✓ Output customization
-✓ File statistics
-✓ Copy to clipboard
+[copied 89B · ~22 tokens]
 ```
 
-## 💡 Use Cases
+### JSON
+```json
+{
+  "project": { "type": "node" },
+  "structure": [...],
+  "dependencies": [...],
+  "meta": { "bytes": 1234, "tokens": 308 }
+}
+```
 
-### 1. LLM Context
+## Language Support
+
+| Language | Files Parsed | What's Extracted |
+|----------|--------------|------------------|
+| **Node.js/TypeScript** | `package.json`, `tsconfig.json` | deps, devDeps, paths, compiler options |
+| **Python** | `pyproject.toml`, `requirements.txt`, `Pipfile` | deps, python version, build system |
+| **Go** | `go.mod`, `go.work` | deps (direct/indirect), go version |
+| **Rust** | `Cargo.toml` | deps, edition, workspace members |
+
+## Monorepo Detection
+
+Automatically detects and analyzes:
+- npm/yarn/pnpm workspaces
+- Turborepo
+- Nx
+- Lerna
+- Go workspaces (`go.work`)
+- Cargo workspaces
+
+## Library Usage
+
+Use dirgo programmatically in your Node.js/TypeScript projects:
+
+```typescript
+import { scan, buildContext, buildTree, buildDeps } from 'dirgo';
+
+// Scan directory
+const result = await scan({ dir: './my-project' });
+console.log(result.projectInfo.type);        // 'node' | 'python' | 'go' | 'rust'
+console.log(result.projectInfo.dependencies);
+console.log(result.monorepo);                // workspace info if detected
+
+// Build full LLM context
+const context = await buildContext({ dir: '.' });
+console.log(context.text);
+console.log(`${context.tokens} tokens`);
+
+// Build just the tree
+const tree = await buildTree({ dir: '.' }, 'tree', false);
+console.log(tree.text);
+
+// Get dependencies
+const deps = await buildDeps('.');
+console.log(deps.text);
+```
+
+### Available Exports
+
+```typescript
+// Core functions
+scan(options)           // Directory scan with project detection
+buildContext(options)   // Full LLM context
+buildTree(options)      // Just directory tree
+buildDeps(dir)          // Just dependencies
+
+// Utilities
+estimateTokens(text)    // Estimate token count
+formatTokens(count)     // Format as "~123 tokens"
+detectProjectType(dir)  // Detect project type
+parseProject(dir, type) // Parse project info
+detectMonorepo(dir)     // Detect monorepo
+
+// Formatters
+formatTree(entries, emoji)  // ASCII tree
+formatToon(entries)         // TOON notation
+formatJson(result)          // JSON output
+```
+
+## MCP Integration
+
+dirgo can run as an MCP (Model Context Protocol) server, allowing AI agents like Claude, Cursor, and others to query project information.
+
+### Setup
+
+Add to your MCP configuration:
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "dirgo": {
+      "command": "dirgo",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+**Cursor** (`.cursor/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "dirgo": {
+      "command": "dirgo",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `dirgo_tree` | Get directory structure |
+| `dirgo_context` | Get full LLM context with deps |
+| `dirgo_deps` | Get project dependencies |
+
+Each tool accepts:
+- `dir` (string) - Target directory path
+- `emoji` (boolean) - Include emojis
+- `format` (string) - `tree`, `toon`, or `json`
+- `depth` (number) - Max traversal depth
+
+## Use Cases
+
+### 1. Share Project Context with AI
 
 ```bash
-dirgo --llm-context -c
-# Perfect for:
-- Sharing project context with ChatGPT
-- Getting AI assistance
-- Project documentation
+dirgo context
+# Paste into ChatGPT, Claude, etc.
 ```
 
 ### 2. Project Documentation
 
 ```bash
-dirgo -s -o file -f docs.md
-# Great for:
-- Project overviews
-- Documentation
-- Team onboarding
+dirgo -e -o docs/structure.md
 ```
 
-### 3. Quick Analysis
+### 3. Quick Project Overview
 
 ```bash
-dirgo -s
-# Shows:
-- File counts
-- Directory sizes
-- Project structure
+dirgo context --depth 2
 ```
 
-### 4. Dependency Analysis
+### 4. Focus on Specific Area
 
 ```bash
-dirgo --llm-context
-# Shows:
-- Go dependencies (direct/indirect)
-- Python package requirements
-- Node.js dependencies
+dirgo --focus src/api
 ```
 
-## 🌟 Why dirgo?
-
-### For Developers
-
--  Quick project visualization
--  Easy documentation generation
--  Multiple output formats
--  Language-aware dependency analysis
-
-### For LLM Users
-
--  Optimized context generation
--  Smart project analysis
--  Comprehensive dependency tracking
--  Code relationship mapping
-
-### For Teams
-
--  Consistent project documentation
--  Easy project sharing
--  Quick project insights
--  Time-saving automation
-
-## 📦 Installation
-
-### Global Installation
+### 5. CI/CD Integration
 
 ```bash
-npm install -g dirgo
+dirgo --format json --no-copy > structure.json
 ```
 
-### One-time Use
+### 6. AI Agent Integration
 
 ```bash
-npx dirgo
+# Run as MCP server
+dirgo serve
 ```
 
-## 📝 Version History
+## Token Counting
 
-### v1.0.7 (Current Stable)
+Every output shows the byte size and estimated token count:
 
-✅ **Recommended version for full functionality**
-
--  Fixed clipboard output formatting (no more ANSI color codes)
--  Added `-n` shorthand for `--no-emoji`
--  Enhanced Go dependency analysis (direct/indirect dependencies)
--  Fixed emoji display in LLM context
--  Memory optimization
--  Fixed project structure display
--  Added default clipboard copying
-
-### v1.0.4
-
-⚠️ Had following issues:
-
--  Didn't have npm package due to my skill issue
-
-### v1.0.2
-
-⚠️ Had following issues:
-
--  Clipboard copied ANSI color codes
--  Memory leaks in directory traversal
--  Emoji display issues in LLM context
--  Fixed recursive structure generation
--  Added better error handling
-
-### v1.0.1
-
-❌ Not recommended due to:
-
--  Node module resolution issues
--  Hidden files being generated
--  Memory issues with large directories
--  CLI execution problems
--  Dependency tracking bugs
-
-### v1.0.0 (Initial Release)
-
-❌ Initial test release with:
-
--  Basic directory structure generation
--  Simple dependency analysis
--  Known issues with module imports
--  Installation and execution problems
-
-## 💡 Installation Guide
-
-For the best experience, install version 1.0.3:
-
-```bash
-# Install specific version globally
-npm install -g dirgo@1.0.3
-
-# Or run with npx
-npx dirgo@1.0.3
+```
+[copied 1.2KB · ~312 tokens]
 ```
 
-## 🤝 Contributing
+This helps you stay within LLM context limits.
 
-Contributions welcome! Feel free to:
+## Ignored by Default
 
--  Open issues
--  Submit PRs
--  Suggest features
--  Improve documentation
+The following are excluded by default:
+- `node_modules`, `.git`, `dist`, `build`
+- `.next`, `.nuxt`, `.output`, `coverage`
+- `__pycache__`, `.pytest_cache`, `.venv`, `venv`
+- `target` (Rust), `.cache`, `.turbo`
 
-## 📄 License
+Use `--include-all` to include everything.
 
-MIT - feel free to use in your projects!
+## License
 
-## 🔗 Links
-
--  [GitHub Repository](https://github.com/fyzanshaik/dirgo)
--  [NPM Package](https://www.npmjs.com/package/dirgo)
--  [Issues](https://github.com/fyzanshaik/dirgo/issues)
+MIT
